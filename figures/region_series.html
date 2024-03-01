@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Region Chart</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.js'></script>
+    <link href='https://api.mapbox.com/mapbox-gl-js/v2.14.1/mapbox-gl.css' rel='stylesheet' />
+
+
+    <style>
+        #map {
+            width: 100%;
+            height: 100vh;
+        }
+
+        #legend {
+            position: absolute;
+            top: 40px;
+            left: 20px;
+        }
+
+        .legend-axis text {
+            fill: white;
+            font-size: 14px;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-weight: lighter;
+        }
+
+        .legend-title {
+            font-family: 'Circular Std', Arial, Helvetica, sans-serif;
+            text-anchor: start;
+            fill: white;
+        }
+
+        h1{
+            color: white;
+            font-size: 20px;
+            font-family: 'Circular Std', Arial, Helvetica, sans-serif;
+            position: absolute;
+            top: 10px;
+            left: 20px;
+        }
+
+        h2 {
+            color: white;
+            font-size: 16px;
+            font-family: 'Raleway', Arial, Helvetica, sans-serif;
+            position: absolute;
+            font-weight: lighter;
+            top: 35px;
+            left: 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="map"></div>
+    <svg id="legend"></svg>
+    <h1>Regional Data</h1>
+    <h2></h2>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+
+        // get Series and Region IDs from the URL
+        const queryString = window.location.search;
+        const urlParams = new URLSearchParams(queryString);
+
+
+
+        SERIES_ID = urlParams.get('series') || 1
+        REGION_ID = urlParams.get('region') || "TLC"
+
+        const britishLocale = d3.formatLocale({
+            decimal: ".",     // Decimal point
+            thousands: ",",   // Thousands separator
+            grouping: [3],    // Digit grouping (standard in British format)
+            currency: ["£", ""] // Currency symbol for British Pound
+        });
+
+        // hard-coded series codes and regions to avoid another request (not laziness)
+        const SERIES_CODES = {  "1": {"series": "GVA per hour (£)"},  "2": {"series": "Median weekly pay (£)"},  "4": {"series": "Employment rate (%)"},  "5": {"series": "Unemployment rate (%)"},  "6": {"series": "Disposable income per head (£)"},  "7": {"series": "UK export value (£m)"},  "8": {"series": "FDI position in UK (£m)"},  "9": {"series": "FDI position abroad (£m)"},  "10": {"series": "R&D expenditure in UK (£m)"},  "11": {"series": "Travel time to employment centre by public transport (min)"},  "12": {"series": "Travel time to employment centre by car (min)"},  "13": {"series": "Travel time to employment centre by cycle (min)"},  "14": {"series": "Gigabit broadband coverage (%)"},  "15": {"series": "4G coverage (%)"},  "16": {"series": "Pupils meeting key stage 2 standards (%)"},  "17": {"series": "Observation Status"},  "18": {"series": "GCSEs achievement rate (%)"},  "19": {"series": "Ofsted rated schools (%)"},  "20": {"series": "Persistent absences (%)"},  "21": {"series": "Persistent absences with free meals (%)"},  "22": {"series": "Persistent absences for looked-after pupils (%)"},  "23": {"series": "Early learning in communication (%)"},  "24": {"series": "Early learning in literacy (%)"},  "25": {"series": "Early learning in maths (%)"},  "26": {"series": "Further Education achievements"},  "27": {"series": "Apprenticeships started (per 100k)"},  "28": {"series": "Apprenticeships achieved (per 100k)"},  "29": {"series": "NVQ3+ qualification rate (%)"},  "30": {"series": "Further education participation (per 100k)"},  "31": {"series": "Welsh Health Board"},  "32": {"series": "Female Healthy Life Expectancy"},  "33": {"series": "Male Healthy Life Expectancy"},  "34": {"series": "Adults smoking (%)"},  "35": {"series": "Obesity in reception age children (%)"},  "36": {"series": "Obesity in Year 6 children (%)"},  "37": {"series": "Adult obesity rate (%)"},  "38": {"series": "Early cancer diagnosis (%)"},  "39": {"series": "Mortality rate under 75 (per 100k)"},  "40": {"series": "Life satisfaction score"},  "41": {"series": "Worthwhile activities score"},  "42": {"series": "Happiness score"},  "43": {"series": "Anxiety score"},  "44": {"series": "Net housing additions (per 1k stock)"},  "46": {"series": "Homicides (per million)"},  "47": {"series": "Area with devolution deal (%)"} }
+        const ITL_CODES = {"TLC":{"itl_name":"North East (England)"},"TLD":{"itl_name":"North West (England)"},"TLE":{"itl_name":"Yorkshire and The Humber"},"TLF":{"itl_name":"East Midlands (England)"},"TLG":{"itl_name":"West Midlands (England)"},"TLH":{"itl_name":"East"},"TLI":{"itl_name":"London"},"TLJ":{"itl_name":"South East (England)"},"TLK":{"itl_name":"South West (England)"},"TLL":{"itl_name":"Wales"},"TLM":{"itl_name":"Scotland"},"TLN":{"itl_name":"Northern Ireland"}}
+
+
+        function prepareChoroData(geoData, seriesData) {
+
+            // merge the series data into the geojson
+            // loop through each feature in the geojson
+            for (var i = 0; i < geoData.features.length; i++) {
+                // get the LAD code
+                var LADcode = geoData.features[i].properties.LAD21CD
+                // get the value of the series for this LAD if it exists
+                if (seriesData[LADcode] == undefined) {
+                    continue
+                }
+                var value = seriesData[LADcode].value
+                // set the value of the series for this LAD
+                geoData.features[i].properties.value = value
+            }
+
+            // keep only the features with a value
+            geoData.features = geoData.features.filter(function (d) {
+                return d.properties.value != undefined
+            })
+
+            return geoData
+
+        }
+
+        function initializeMap() {
+            mapboxgl.accessToken = 'pk.eyJ1IjoiZm0tZHMiLCJhIjoiY2xvbXIwb3piMm93aTJscndvYnFncjh4NSJ9.ZYcFieW_kfpK-uB6PhVkLA';
+
+            var map = new mapboxgl.Map({
+                container: 'map', // container ID
+                style: 'mapbox://styles/fm-ds/clomumkxq00be01pmfce62xuf', // Replace with your preferred style
+                zoom: 3, // starting zoom
+                center: [-3.435973, 55.378051]
+            });
+
+            return map;
+        }
+
+        function addColours(geoData) {
+            // get the min and max values
+            var min = d3.min(geoData.features, function (d) {
+                return d.properties.value
+            })
+            var max = d3.max(geoData.features, function (d) {
+                return d.properties.value
+            })
+
+            // create a color scale
+            var colorScale = d3.scaleSequential()
+                .domain([min, max])
+                .interpolator(d3.interpolateViridis)
+
+            // loop through each feature in the geojson and set the color
+            for (var i = 0; i < geoData.features.length; i++) {
+                var value = geoData.features[i].properties.value
+                color = d3.rgb(colorScale(value))
+                // prettify the color to "rgb(r,g,b)"
+                color = "rgba(" + color.r + "," + color.g + "," + color.b + ",0.7)"
+                geoData.features[i].properties.color = color
+            }
+
+            return colorScale
+
+        }
+
+        function drawLegend(targetID, colorScale, title, description, format) {
+            const svg = d3.select(targetID);
+            const legendWidth = 300;
+            const legendHeight = 20;
+
+
+            // remove any existing legend (remove #legendBlock)
+            svg.select('#legendBlock').remove();
+
+            legendBlock = svg.append('g')
+                .attr('id', 'legendBlock')
+
+            // create a title
+            legendBlock.append('text')
+                .attr('class', 'legend-title')
+                .attr('x', 0)
+                .attr('y', -10)
+                .attr('font-family', 'Circular Std')
+                .attr('text-anchor', 'start')
+                .attr('fill', 'white')
+                .text(title);
+
+            // create a multi-line description with foreignObject
+            legendBlock.append('foreignObject')
+                .attr('x', 0)
+                .attr('y', 0)
+                .attr('width', 400)
+                .attr('height', 100)
+                .append('xhtml:div')
+                .html(description)
+                .style('font-family', 'Raleway, Arial, sans-serif')
+                .style('font-weight', 'lighter')
+                .style('font-size', '12px')
+                .style('color', 'white')
+                .style('line-height', '1.2em')
+                .style('margin-top', '10px')
+                .style('margin-bottom', '10px')
+                .style('text-align', 'left')
+
+            // Create a group element to contain the legend
+            const legend = legendBlock.append('g')
+                .attr('class', 'legend')
+                .attr('transform', `translate(0, 35)`);
+            //.attr('transform', `translate(${(svg.attr('width') - legendWidth) / 2}, ${svg.attr('height') - legendHeight - 20})`);
+
+            // Create a linear gradient to represent the color scale
+            const gradientId = 'legendGradient';
+            const gradient = legend.append('defs')
+                .append('linearGradient')
+                .attr('id', gradientId);
+
+            const gradientData = Array.from({ length: 10 }, (d, i) => i / 9);  // Create 10 gradient stops
+            gradient.selectAll('stop')
+                .data(gradientData)
+                .enter()
+                .append('stop')
+                .attr('offset', d => d * 100 + '%')
+                .attr('stop-color', d => colorScale(d * colorScale.domain()[1]));
+
+            // Append a rectangle to show the gradient color scale
+            legend.append('rect')
+                .attr('width', legendWidth)
+                .attr('height', legendHeight)
+                .attr('stroke', 'white')
+                .attr('stroke-width', 0.5)
+                .attr('fill', `url(#${gradientId})`);
+
+            // Create an axis to show the scale values
+            const legendScale = d3.scaleLinear()
+                .domain(colorScale.domain())
+                .range([0, legendWidth]);
+
+            const legendAxis = d3.axisBottom(legendScale)
+                .ticks(5)
+                .tickFormat(britishLocale.format(format));
+
+            legend.append('g')
+                .attr('class', 'legend-axis')
+                .attr('transform', `translate(0,${legendHeight + 2})`)
+                .call(legendAxis);
+        }
+
+
+        d3.json("/data/cleaned/LAD.geojson").then(
+            function (geoData) {
+                d3.json(`/data/cleaned/regional/series_${SERIES_ID}_${REGION_ID}.json`).then(
+                    function (seriesData) {
+                        geoData = prepareChoroData(geoData, seriesData)
+
+                        map = initializeMap()
+
+                        // get a color scale
+                        colorScale = addColours(geoData)
+
+                        // after map is loaded
+                        map.on('load', function () {
+                            // add the Choropleth layer
+                            var choroplethLayerId = 'choropleth'
+
+                            GEO = geoData
+                            SERIES = seriesData
+
+                            // add the Choropleth layer
+
+                            // Add the new source for the choropleth layer
+                            map.addSource(choroplethLayerId, {
+                                'type': 'geojson',
+                                'data': geoData // GeoJSON data
+                            });
+
+                            // Find the first label layer to insert the choropleth layer below
+                            var labelLayerId;
+                            var layers = map.getStyle().layers;
+                            for (var i = 0; i < layers.length; i++) {
+                                if (layers[i].type === 'symbol' && layers[i].layout['text-field']) {
+                                    labelLayerId = layers[i].id;
+                                    break;
+                                }
+                            }
+
+                            // Add the choropleth layer below the label layer
+                            map.addLayer({
+                                'id': choroplethLayerId,
+                                'type': 'fill',
+                                'source': choroplethLayerId,
+                                'layout': {},
+                                'paint': {
+                                    'fill-color': ['get', 'color']
+                                }
+                            }, labelLayerId);
+
+                            const sourceData = map.getSource(choroplethLayerId)._data;
+
+                            // Step 2: Calculate the bounds of the GeoJSON data
+                            const bounds = new mapboxgl.LngLatBounds();
+
+                            sourceData.features.forEach(function (feature) {
+                                if (feature.geometry.type === 'Point') {
+                                    bounds.extend(feature.geometry.coordinates);
+                                } else {
+                                    feature.geometry.coordinates.forEach(function (coords) {
+                                        coords.forEach(function (coord) {
+                                            bounds.extend(coord);
+                                        });
+                                    });
+                                }
+                            });
+
+                            // Step 3: Adjust the map view to fit the bounds of the layer
+                            map.fitBounds(bounds, {
+                                padding: 20 // You can adjust the padding
+                            });
+
+                            // add the legend
+                            drawLegend('#legend', colorScale, "Legend", "", ".2f")
+
+                            // add a title
+                            d3.select("h1").text(SERIES_CODES[SERIES_ID].series)
+                            d3.select("h2").text(ITL_CODES[REGION_ID].itl_name)
+
+
+                        })
+
+
+
+
+
+                    })
+
+
+
+
+            }
+        )
+    </script>
+
+
+</body>
+
+</html>
