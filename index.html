@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+<html> 
+
+<head>    
+
+
+    
+    <link rel="stylesheet" type="text/css" href="index.css">
+    <title>Regional Chart Builder</title> 
+
+    
+</head>
+
+<body> 
+
+    <h1 style="margin-bottom: 0px;"> 
+        
+        Regional Charts
+    </h1>
+    <p style="margin-top: 0px; color: darkblue">
+        
+        Finn McEvoy | <a
+            href="https://www.github.com/FM-ds">GitHub</a>
+    </p>
+    <h3>
+        Use this page to build and embed regional charts. Select a series and region from the dropdowns below to update the chart. The code for the iframe will update automatically.
+        ❗️Lots of bug fixing to do
+    </h3>
+
+    
+    <section>
+        <div class="chart-description">
+            <h2>Figures 1: LADs in Region</h2>
+        <form>
+            <label for="series">Series:</label>
+            <select id="series">
+                <!-- Add options for series here -->
+            </select>
+            <label for="region">Region:</label>
+            <select id="region">
+                <!-- Add options for region here -->
+            </select>
+            <button type="button" onclick="updateRegionChart()">Update</button>
+        </form>
+
+        <div id="codeSource">
+            <code>
+                &lt;iframe width="500px" height="800px" src="https://economicsobservatory.github.io/UKRegionalFocus/figures/region_series.html?series=4&region=TLG"  style="border: none; overflow: hidden;" scrolling="no" frameborder="0" allowTransparency="true"&gt;&lt;/iframe&gt;
+        </code>
+
+        </div>
+            
+
+        </div>
+        <figure id="fig1">
+            <iframe width="500px" height="800px" src="https://economicsobservatory.github.io/UKRegionalFocus/figures/region_series.html?series=4&region=TLG"  style="border: none; overflow: hidden;" scrolling="no" frameborder="0" allowTransparency="true"></iframe>
+
+        </figure> 
+    </section>
+    
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script>
+        const SERIES_CODES = {  "1": {"series": "GVA per hour (£)"},  "2": {"series": "Median weekly pay (£)"},  "4": {"series": "Employment rate (%)"},  "5": {"series": "Unemployment rate (%)"},  "6": {"series": "Disposable income per head (£)"},  "7": {"series": "UK export value (£m)"},  "8": {"series": "FDI position in UK (£m)"},  "9": {"series": "FDI position abroad (£m)"},  "10": {"series": "R&D expenditure in UK (£m)"},  "11": {"series": "Travel time to employment centre by public transport (min)"},  "12": {"series": "Travel time to employment centre by car (min)"},  "13": {"series": "Travel time to employment centre by cycle (min)"},  "14": {"series": "Gigabit broadband coverage (%)"},  "15": {"series": "4G coverage (%)"},  "16": {"series": "Pupils meeting key stage 2 standards (%)"},  "17": {"series": "Observation Status"},  "18": {"series": "GCSEs achievement rate (%)"},  "19": {"series": "Ofsted rated schools (%)"},  "20": {"series": "Persistent absences (%)"},  "21": {"series": "Persistent absences with free meals (%)"},  "22": {"series": "Persistent absences for looked-after pupils (%)"},  "23": {"series": "Early learning in communication (%)"},  "24": {"series": "Early learning in literacy (%)"},  "25": {"series": "Early learning in maths (%)"},  "26": {"series": "Further Education achievements"},  "27": {"series": "Apprenticeships started (per 100k)"},  "28": {"series": "Apprenticeships achieved (per 100k)"},  "29": {"series": "NVQ3+ qualification rate (%)"},  "30": {"series": "Further education participation (per 100k)"},  "31": {"series": "Welsh Health Board"},  "32": {"series": "Female Healthy Life Expectancy"},  "33": {"series": "Male Healthy Life Expectancy"},  "34": {"series": "Adults smoking (%)"},  "35": {"series": "Obesity in reception age children (%)"},  "36": {"series": "Obesity in Year 6 children (%)"},  "37": {"series": "Adult obesity rate (%)"},  "38": {"series": "Early cancer diagnosis (%)"},  "39": {"series": "Mortality rate under 75 (per 100k)"},  "40": {"series": "Life satisfaction score"},  "41": {"series": "Worthwhile activities score"},  "42": {"series": "Happiness score"},  "43": {"series": "Anxiety score"},  "44": {"series": "Net housing additions (per 1k stock)"},  "46": {"series": "Homicides (per million)"},  "47": {"series": "Area with devolution deal (%)"} }
+        const ITL_CODES = {"TLC":{"itl_name":"North East (England)"},"TLD":{"itl_name":"North West (England)"},"TLE":{"itl_name":"Yorkshire and The Humber"},"TLF":{"itl_name":"East Midlands (England)"},"TLG":{"itl_name":"West Midlands (England)"},"TLH":{"itl_name":"East"},"TLI":{"itl_name":"London"},"TLJ":{"itl_name":"South East (England)"},"TLK":{"itl_name":"South West (England)"},"TLL":{"itl_name":"Wales"},"TLM":{"itl_name":"Scotland"},"TLN":{"itl_name":"Northern Ireland"}}
+
+        // loop over the series codes and add them to the series select
+        for (const [code, series] of Object.entries(SERIES_CODES)) {
+            const option = document.createElement("option");
+            option.value = code;
+            option.textContent = series.series;
+            document.getElementById("series").appendChild(option);
+        }
+
+        // loop over the ITL codes and add them to the region select
+        for (const [code, region] of Object.entries(ITL_CODES)) {
+            const option = document.createElement("option");
+            option.value = code;
+            option.textContent = region.itl_name;
+            document.getElementById("region").appendChild(option);
+        }
+
+        // start with region=TLG and series=4
+        // set the default values for the select elements
+        document.getElementById("series").value = "4";
+        document.getElementById("region").value = "TLG";
+
+
+        function updateRegionChart(){
+            // get the series and region from the select elements
+            const series = document.getElementById("series").value;
+            const region = document.getElementById("region").value;
+
+            let new_url = `https://economicsobservatory.github.io/UKRegionalFocus/figures/region_series.html?series=${series}&region=${region}`;
+            iframe_html = `<iframe width="500px" height="800px" src="${new_url}"  style="border: none; overflow: hidden;" scrolling="no" frameborder="0" allowTransparency="true"></iframe>`;
+
+            // update the iframe with the new url
+            document.getElementById("fig1").innerHTML = iframe_html;
+            // update the code source with the new url
+            document.getElementById("codeSource").innerHTML = `<code>&lt;iframe width="800px" height="400px" src="${new_url}"  style="border: none; overflow: hidden;" scrolling="no" frameborder="0" allowTransparency="true"&gt;&lt;/iframe&gt;</code>`;
+        }
+
+    </script>
+
+</body>
+    
+</html>
