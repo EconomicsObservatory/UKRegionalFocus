@@ -237,9 +237,9 @@
         }
 
 
-        d3.json("/data/cleaned/LAD.geojson").then(
+        d3.json("../data/cleaned/LAD.geojson").then(
             function (geoData) {
-                d3.json(`/data/cleaned/regional/series_${SERIES_ID}_${REGION_ID}.json`).then(
+                d3.json(`../data/cleaned/regional/series_${SERIES_ID}_${REGION_ID}.json`).then(
                     function (seriesData) {
                         geoData = prepareChoroData(geoData, seriesData)
 
